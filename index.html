@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h1>Teorema Freestyle Bot</h1>
+    <textarea id="input" placeholder="Tu barra..."></textarea>
+    <button onclick="send()">Lanzar</button>
+    <div id="response"></div>
+    <script>
+        const ws = new WebSocket("ws://localhost:8000/ws");
+        function send() {
+            ws.send(document.getElementById("input").value);
+        }
+        ws.onmessage = (e) => {
+            document.getElementById("response").innerText = e.data;
+        }
+    </script>
+</body>
+</html>
