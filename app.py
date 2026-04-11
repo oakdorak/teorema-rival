@@ -1,28 +1,38 @@
-# Teorema-Rival Backend (FastAPI + TTS + Style Engine)
+# Teorema-Rival Backend (Refactorizado con Motor Freestyle e Integración Audio)
 
 import os
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse
-import whisper
-import pyttsx3 # Or another TTS engine
+# Importamos nuestras nuevas clases
+from generador_freestyle import GeneradorFreestyle
+from integrador_audio import IntegradorAudio
 
 app = FastAPI()
 
-# Placeholder for Teorema Style Engine
-def generate_teorema_punchline(user_input):
-    return "¡Tu métrica es básica, tu flow es un desastre, yo soy el Teorema que viene a destrozarte!"
+# Inicialización de motores
+motor_freestyle = GeneradorFreestyle(agresividad=0.8)
+audio_integrador = IntegradorAudio(tts_api_url="http://localhost:8000")
 
 @app.get("/")
 async def get():
-    return HTMLResponse(open("index.html").read())
+    with open("index.html", "r") as f:
+        return HTMLResponse(f.read())
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     while True:
         data = await websocket.receive_text()
-        # 1. Transcribe (Whisper integration pending local install)
-        # 2. Analyze Style (Teorema Logic)
-        response = generate_teorema_punchline(data)
-        # 3. TTS Response (Integration pending)
-        await websocket.send_text(response)
+        
+        # 1. Analizar e identificar (Tribe V2 logic goes here)
+        # 2. Generar Punchline (Motor Freestyle)
+        response_text = motor_freestyle.generar_cuarteta(data)
+        
+        # 3. TTS Response (Generar Audio)
+        audio_path = audio_integrador.generar_audio(response_text)
+        
+        # Enviar respuesta tanto de texto como ruta de archivo para el frontend
+        await websocket.send_json({
+            "text": response_text,
+            "audio_path": audio_path
+        })
