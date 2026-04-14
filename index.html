@@ -15,11 +15,19 @@
         #btn-send { background: #00c6ff; color: white; }
         textarea { padding: 10px; flex-grow: 1; height: 60px; border-radius: 5px; border: 1px solid #333; background: #222; color: white; resize: none; }
         #status { font-size: 0.8rem; color: #888; margin-top: 10px; }
+        .mode-selector { display: flex; gap: 10px; margin-bottom: 10px; }
+        .mode-btn { background: #333; color: #aaa; font-size: 0.8rem; }
+        .mode-btn.active { background: #f1c40f; color: black; }
     </style>
 </head>
 <body>
     <h1>🎤 Teorema Freestyle Bot</h1>
     
+    <div class="mode-selector">
+        <button id="mode-teorema" class="mode-btn active" onclick="setMode('teorema')">Teorema Mode</button>
+        <button id="mode-goku" class="mode-btn" onclick="setMode('goku')">Goku Mode ⚡</button>
+    </div>
+
     <div class="controls">
         <div class="text-controls">
             <textarea id="input" placeholder="Escribe tu barra..."></textarea>
@@ -33,11 +41,19 @@
     <div id="audio-player-container" style="margin-top: 20px;"></div>
 
     <script>
+        let currentMode = 'teorema';
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
 
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('mode-teorema').classList.toggle('active', mode === 'teorema');
+            document.getElementById('mode-goku').classList.toggle('active', mode === 'goku');
+        }
+
         async function handleResponse(formData) {
+            formData.append('mode', currentMode);
             document.getElementById('response').innerText = "⚙️ Generando respuesta...";
             document.getElementById('status').innerText = "Estado: Procesando...";
             

@@ -14,9 +14,9 @@ class IntegradorAudio:
         self.tts_api_url = tts_api_url or os.getenv("TTS_API_URL", "https://api.openai.com/v1/audio/speech")
         self.api_key = os.getenv("OPENAI_API_KEY", "")
 
-    def generar_audio(self, texto, filename_prefix="batalla"):
+    def generar_audio(self, texto, voice="alloy", filename_prefix="batalla"):
         """
-        Envía texto a la API de OpenAI TTS y devuelve el audio en formato Base64 o un mensaje de error.
+        Envía texto a la API de OpenAI TTS y devuelve el audio en formato Base64.
         """
         if not self.api_key:
             return {"error": "Falta la OPENAI_API_KEY en las variables de entorno."}
@@ -35,7 +35,7 @@ class IntegradorAudio:
             payload = {
                 "model": "tts-1",
                 "input": texto,
-                "voice": "alloy"
+                "voice": voice
             }
             
             response = requests.post(
@@ -52,18 +52,15 @@ class IntegradorAudio:
                 audio_base64 = base64.b64encode(response.content).decode('utf-8')
                 latencia = time.time() - start_time
                 self._log_interaccion(texto, output_path, latencia)
-                return {"data": audio_base64}
+                return audio_base64
             else:
-                # Extraemos el mensaje de error detallado de OpenAI
                 try:
                     err_msg = response.json().get("error", {}).get("message", response.text)
                 except:
                     err_msg = response.text
-                print(f"Error en API OpenAI TTS: {response.status_code} - {err_msg}")
                 return {"error": f"OpenAI TTS ({response.status_code}): {err_msg}"}
                 
         except Exception as e:
-            print(f"Error en comunicación con OpenAI TTS: {e}")
             return {"error": f"Error de conexión TTS: {str(e)}"}
 
     def _log_interaccion(self, texto, path, latencia):

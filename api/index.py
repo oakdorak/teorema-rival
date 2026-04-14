@@ -57,7 +57,8 @@ async def get():
 @app.post("/api/chat")
 async def chat_endpoint(
     text: Optional[str] = Form(None), 
-    file: Optional[UploadFile] = File(None)
+    file: Optional[UploadFile] = File(None),
+    mode: Optional[str] = Form("teorema")
 ):
     """
     Endpoint HTTP que reemplaza el WebSocket para compatibilidad con Vercel.
@@ -78,17 +79,19 @@ async def chat_endpoint(
         else:
             return JSONResponse(status_code=400, content={"error": "Debes enviar texto o audio."})
 
-        # 2. Generar respuesta freestyle
-        response_text = motor_freestyle.generar_cuarteta(input_text)
+        # 2. Generar respuesta freestyle según el modo
+        response_text = motor_freestyle.generar_cuarteta(input_text, mode=mode)
         
-        # 3. Generar audio response
+        # 3. Generar audio response (Cambiamos voz según modo)
+        # Usamos voces de OpenAI como proxy hasta tener el RVC
+        voice = "onyx" if mode == "goku" else "alloy"
+        
         loop = asyncio.get_event_loop()
         audio_result = await loop.run_in_executor(
             None, 
-            lambda: audio_integrador.generar_audio(response_text)
+            lambda: audio_integrador.generar_audio(response_text, voice=voice)
         )
         
-        # Verificamos si el resultado es un error o el audio base64
         if isinstance(audio_result, dict) and "error" in audio_result:
             return JSONResponse(status_code=500, content={"error": audio_result["error"]})
         
