@@ -12,13 +12,17 @@ from integrador_audio import IntegradorAudio
 
 app = FastAPI()
 
-# Configuración de motores
-motor_freestyle = GeneradorFreestyle(agresividad=0.9)
-audio_integrador = IntegradorAudio()
-
-# Configuración de OpenAI Whisper
-WHISPER_API_URL = os.getenv("WHISPER_API_URL", "https://api.openai.com/v1/audio/transcriptions")
+# Configuración de API Keys y Endpoints
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+WHISPER_API_URL = os.getenv("WHISPER_API_URL", "https://api.openai.com/v1/audio/transcriptions")
+
+# Rutas de archivos
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+INDEX_PATH = os.path.join(BASE_DIR, "index.html")
+
+# Configuración de motores
+motor_freestyle = GeneradorFreestyle(api_key=OPENAI_API_KEY)
+audio_integrador = IntegradorAudio()
 
 async def transcribe_audio(audio_bytes):
     """
@@ -51,8 +55,11 @@ async def transcribe_audio(audio_bytes):
 
 @app.get("/")
 async def get():
-    with open("index.html", "r") as f:
-        return HTMLResponse(f.read())
+    try:
+        with open(INDEX_PATH, "r") as f:
+            return HTMLResponse(f.read())
+    except FileNotFoundError:
+        return HTMLResponse("<h1>index.html not found</h1>")
 
 @app.post("/api/chat")
 async def chat_endpoint(
@@ -79,7 +86,7 @@ async def chat_endpoint(
         else:
             return JSONResponse(status_code=400, content={"error": "Debes enviar texto o audio."})
 
-        # 2. Generar respuesta freestyle según el modo
+        # 2. Generar respuesta freestyle según el modo (Ahora con LLM real)
         response_text = motor_freestyle.generar_cuarteta(input_text, mode=mode)
         
         # 3. Generar audio response (Cambiamos voz según modo)

@@ -1,48 +1,50 @@
-import random
-import re
+import os
+from openai import OpenAI
 
 class GeneradorFreestyle:
-    def __init__(self, agresividad=0.9):
-        self.agresividad = agresividad
+    def __init__(self, api_key):
+        self.client = OpenAI(api_key=api_key)
         
-        # Lexico Teorema (Técnica y Agresividad)
-        self.vocab_teorema = {
-            "sujetos": ["novato", "fantasma", "copia", "estatua", "eco", "sombra", "figurante"],
-            "conceptos": ["flow", "metrica", "estilo", "punchline", "escena", "trono", "leyenda", "maestria", "patron", "codigo"],
-            "ataques": ["quemado", "obsoleto", "vacío", "genérico", "frágil", "silenciado", "enterrado", "borrado"],
-            "poder": ["motor", "rayo", "fuego", "trueno", "imperio", "corona", "dictador", "cima", "volcan", "tsunami"],
-            "verbos_ataque": ["rompo", "quemo", "borro", "aplasto", "estrujo", "aniquilo", "humillo", "desmonto"],
+        self.prompts = {
+            "teorema": (
+                "Eres Teorema, el rapero más técnico y agresivo de la escena. "
+                "Tu estilo se basa en la precisión quirúrgica, métricas complejas, "
+                "multisílabas y punchlines devastadores que humillan al oponente. "
+                "No eres amable; buscas el dominio total de la batalla. "
+                "Genera una cuarteta (exactamente 4 versos) respondiendo al input del usuario. "
+                "Usa lenguaje de freestyle real, enfócate en el remate final (punchline) "
+                "y mantén una actitud superior y técnica."
+            ),
+            "goku": (
+                "Eres Goku en modo batalla. Tienes una energía desbordante, "
+                "espíritu de lucha inquebrantable y haces referencias constantes "
+                "a Dragon Ball (Ki, Super Saiyan, transformaciones, entrenamiento). "
+                "Eres dominante, poderoso, pero mantienes ese espíritu de superación. "
+                "Genera una cuarteta (exactamente 4 versos) respondiendo al input del usuario. "
+                "Que se sienta el poder del Ki en cada verso."
+            )
         }
-        
-        # Lexico Goku (Energía y Dragon Ball)
-        self.vocab_goku = {
-            "sujetos": ["guerrero", "rival", "enemigo", "villano", "terrestre", "saiyan"],
-            "conceptos": ["ki", "entrenamiento", "fuerza", "voluntad", "espíritu", "batalla", "destrucción"],
-            "ataques": ["derrotado", "superado", "fuera de combate", "humillado", "en el polvo"],
-            "poder": ["Kamehameha", "Genkidama", "Ultra Instinto", "Super Saiyan", "Kaio Ken", "Esferas del Dragón"],
-            "verbos_ataque": ["supero", "vuelo", "golpeo", "estallo", "transformo", "desintegro"],
-        }
-
-    def _get(self, cat, mode="teorema"):
-        vocab = self.vocab_teorema if mode == "teorema" else self.vocab_goku
-        return random.choice(vocab.get(cat, ["flow"]))
 
     def generar_cuarteta(self, input_usuario, mode="teorema"):
-        tema = input_usuario.split()[-1] if input_usuario else "estilo"
+        system_prompt = self.prompts.get(mode, self.prompts["teorema"])
         
-        if mode == "goku":
-            # Estilo Goku: Energético, optimista pero dominante
-            v1 = f"Siento tu {self._get('conceptos', 'goku')} en el aire, pero mi {self._get('poder', 'goku')} es superior."
-            v2 = f"Te enfrentas a un {self._get('sujetos', 'goku')} que nunca se rinde, ¡estás {self._get('ataques', 'goku')}!"
-            v3 = f"Entrené en el espacio y el tiempo para {self._get('verbos_ataque', 'goku')} tu {self._get('conceptos', 'goku')}."
-            v4 = f"¡Siente el poder del {self._get('poder', 'goku')}! ¡KAMEHAMEHA final para dejarte {self._get('ataques', 'goku')}!"
-            header = "🎤 [MODO: GOKU - ULTRA INSTINTO]"
-        else:
-            # Estilo Teorema: Técnico y Agresivo
-            v1 = f"Dices que sabes de {tema}, pero tu {self._get('conceptos', 'teorema')} es {self._get('ataques', 'teorema')}."
-            v2 = f"Yo {self._get('verbos_ataque', 'teorema')} tu {self._get('conceptos', 'teorema')}, dejándote {self._get('ataques', 'teorema')} en el suelo."
-            v3 = f"En esta batalla, tú eres solo un {self._get('sujetos', 'teorema')} que no aguanta el {self._get('poder', 'teorema')}."
-            v4 = f"¡Soy el Teorema, la ley del rap, y tú el {self._get('sujetos', 'teorema')} que no puede crecer!"
-            header = "🎤 [ESTILO: TEOREMA-PUNCHLINE]"
-
-        return f"{header}\n\n{v1}\n{v2}\n{v3}\n{v4}"
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Responde a esto con una cuarteta de freestyle: {input_usuario}"}
+                ],
+                temperature=0.8,
+                max_tokens=150
+            )
+            
+            text = response.choices[0].message.content.strip()
+            
+            header = "🎤 [ESTILO: TEOREMA-PUNCHLINE]" if mode == "teorema" else "🎤 [MODO: GOKU - ULTRA INSTINTO]"
+            return f"{header}\n\n{text}"
+            
+        except Exception as e:
+            print(f"Error generando freestyle con LLM: {e}")
+            # Fallback básico en caso de error de API
+            return f"🎤 [ERROR]\n\nEl motor de rimas falló, pero mi flow sigue intacto.\nSigo aquí arriba, tú sigues abajo.\nEl sistema cae, pero yo no me muevo.\n¡Esta batalla la gano aunque el código esté nuevo!"

@@ -3,3 +3,4 @@ uvicorn
 python-multipart
 requests
 gradio_client
+openai
