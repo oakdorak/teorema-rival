@@ -98,20 +98,26 @@ async def chat_endpoint(
         voice = "onyx" if mode == "goku" else "alloy"
         
         loop = asyncio.get_event_loop()
-        audio_result = await loop.run_in_executor(
-            None, 
-            lambda: audio_integrador.generar_audio(response_text, voice=voice)
-        )
-        
+        try:
+            audio_result = await loop.run_in_executor(
+                None, 
+                lambda: audio_integrador.generar_audio(response_text, voice=voice)
+            )
+        except Exception as e:
+            print(f"Critical error in audio executor: {e}")
+            audio_result = None
+
+        # Si el audio falló, no lanzamos un 500, devolvemos el texto y avisamos que el audio no está disponible
         if isinstance(audio_result, dict) and "error" in audio_result:
-            return JSONResponse(status_code=500, content={"error": audio_result["error"]})
+            print(f"Audio error: {audio_result['error']}")
+            audio_result = None
         
         if not audio_result:
-            return JSONResponse(status_code=500, content={"error": "Error desconocido generando audio TTS."})
+            print("Audio result was empty or failed, returning text only.")
 
         return {
             "text": response_text,
-            "audio_base64": audio_result,
+            "audio_base64": audio_result, # Será None si falló
             "transcription": input_text if file else None
         }
         

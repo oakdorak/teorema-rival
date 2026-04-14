@@ -29,8 +29,9 @@ class GeneradorFreestyle:
         system_prompt = self.prompts.get(mode, self.prompts["teorema"])
         
         try:
+            # Cambiado a gpt-4o-mini para reducir la latencia drásticamente
             response = self.client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Responde a esto con una cuarteta de freestyle: {input_usuario}"}
@@ -46,5 +47,4 @@ class GeneradorFreestyle:
             
         except Exception as e:
             print(f"Error generando freestyle con LLM: {e}")
-            # Fallback básico en caso de error de API
             return f"🎤 [ERROR]\n\nEl motor de rimas falló, pero mi flow sigue intacto.\nSigo aquí arriba, tú sigues abajo.\nEl sistema cae, pero yo no me muevo.\n¡Esta batalla la gano aunque el código esté nuevo!"
