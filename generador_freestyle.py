@@ -2,49 +2,56 @@ import random
 import re
 
 class GeneradorFreestyle:
-    def __init__(self, agresividad=0.5):
-        self.agresividad = max(0, min(1, agresividad))  # 0.0 a 1.0
-        # Diccionario léxico según nivel de agresividad
+    def __init__(self, agresividad=0.8):
+        self.agresividad = agresividad
+        
+        # Diccionario expandido estilo "Teorema" (Battler Profesional)
         self.lexico = {
-            "bajo": ["ritmo", "flow", "pista", "mente"],
-            "medio": ["fuego", "destino", "camino", "brillo"],
-            "alto": ["arma", "sangre", "guerra", "fuerte"]
+            "conceptos": ["flow", "metrica", "estilo", "punchline", "escena", "trono", "leyenda", "maestria"],
+            "ataque": ["quemado", "obsoleto", "copia", "fantasma", "novato", "silencio", "suelo", "cenizas"],
+            "poder": ["motor", "rayo", "fuego", "trueno", "imperio", "corona", "dictador", "cima"],
+            "conectores": ["pero", "aunque", "entonces", "mientras", "porque"]
         }
-        self.esquemas = ["AABB", "ABAB"]
+        
+        # Plantillas de estructura de punchline (simulando la descomposición de Teorema)
+        self.estructuras = [
+            "Dices que tienes {conceptos}, pero en realidad eres {ataque}.",
+            "Tu rap es {ataque}, el mío es el {poder} que te deja en el {ataque}.",
+            "Vienes con {conceptos} falso, yo traigo el {poder} y el {lexico['conceptos'][0]} real.",
+            "Hablas de {poder}, pero tu {conceptos} es solo un {ataque} en la pista.",
+            "No intentes seguir mi {metrica}, porque mi {poder} es tu {ataque}."
+        ]
 
-    def _get_vocabulario(self):
-        if self.agresividad < 0.4:
-            return self.lexico["bajo"]
-        elif self.agresividad < 0.7:
-            return self.lexico["medio"]
-        else:
-            return self.lexico["alto"]
-
-    def validar_rima(self, v1, v2):
-        # Validación fonética simple (comparación de sufijo de 2 letras)
-        sufijo1 = v1.strip()[-2:].lower()
-        sufijo2 = v2.strip()[-2:].lower()
-        return sufijo1 == sufijo2
+    def _obtener_palabra(self, categoria):
+        return random.choice(self.lexico.get(categoria, ["flow"]))
 
     def generar_cuarteta(self, input_usuario):
-        vocab = self._get_vocabulario()
-        esquema = random.choice(self.esquemas)
+        # Simulación de análisis de input
+        tema = input_usuario.split()[-1] if input_usuario else "estilo"
         
-        # Generación simulada de versos basada en input
-        # En una implementación real usarías un modelo generativo
-        versos = [f"Hablas de {input_usuario} pero no tienes el {random.choice(vocab)}",
-                  f"Yo vengo con fuerza, demostrando mi {random.choice(vocab)}",
-                  f"En esta batalla, tú eres solo un {random.choice(vocab)}",
-                  f"Te dejo en el suelo, perdiendo mi {random.choice(vocab)}"]
+        # Generar 4 versos con rima simulada (AABB o ABAB)
+        # Para Teorema, usamos rimas fuertes y directas
         
-        # Validación de rima
-        if esquema == "AABB":
-            if not (self.validar_rima(versos[0], versos[1]) and self.validar_rima(versos[2], versos[3])):
-                versos[1] = "Verso con rima forzada A"
-                versos[3] = "Verso con rima forzada B"
+        # Verso 1: Ataque directo al input
+        v1 = f"Dices que sabes de {tema}, pero tu {self._obtener_palabra('conceptos')} es {self._obtener_palabra('ataque')}."
         
-        return f"Esquema {esquema}:\n" + "\n".join(versos)
+        # Verso 2: Rima con V1 (A)
+        rima_a = v1.split()[-1].lower()
+        v2 = f"Yo llego con la {self._obtener_palabra('poder')}, rompiendo tu {rima_a} con mi propia {self._obtener_palabra('maestria') if 'maestria' in self.lexico['conceptos'] else 'maestria'}."
+        # (Simplificación: forzamos la rima conceptualmente)
+        v2 = f"Llego con el {self._obtener_palabra('poder')}, y dejo tu {self._obtener_palabra('ataque')} en el suelo, ¡está hecho!"
+        
+        # Verso 3: Construcción de tensión (B)
+        v3 = f"En esta batalla, tú eres solo un {self._obtener_palabra('ataque')} que no aguanta el {self._obtener_palabra('poder')}."
+        
+        # Verso 4: PUNCHLINE FINAL (B)
+        v4 = f"¡Soy el Teorema, la ley del rap, y tú solo el {self._obtener_palabra('ataque')} que no puede crecer!"
+        
+        # Ajuste de estilo basado en agresividad
+        if self.agresividad > 0.7:
+            v4 = f"¡Cierra la boca, novato, que el Teorema llegó para dejarte en el {self._obtener_palabra('ataque')}!"
 
-# Ejemplo de uso:
-# gen = GeneradorFreestyle(agresividad=0.8)
-# print(gen.generar_cuarteta("tu estilo"))
+        return f"🎤 [TIPO: PUNCHLINE]\n\n{v1}\n{v2}\n{v3}\n{v4}"
+
+    def _obtener_palabra_segura(self, cat):
+        return random.choice(self.lexico.get(cat, ["flow"]))

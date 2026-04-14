@@ -13,7 +13,7 @@ from integrador_audio import IntegradorAudio
 app = FastAPI()
 
 # Configuración de motores
-motor_freestyle = GeneradorFreestyle(agresividad=0.8)
+motor_freestyle = GeneradorFreestyle(agresividad=0.9) # Aumentamos agresividad
 audio_integrador = IntegradorAudio()
 
 # Configuración de OpenAI Whisper
@@ -70,31 +70,43 @@ async def websocket_endpoint(websocket: WebSocket):
                 if transcription:
                     input_text = transcription
                 else:
-                    await websocket.send_json({"error": "No se pudo transcribir el audio con OpenAI"})
+                    await websocket.send_json({"error": "Error transcribiendo audio. Verifica tu API Key de OpenAI."})
                     continue
             
             if not input_text:
                 continue
 
-            response_text = motor_freestyle.generar_cuarteta(input_text)
-            
-            loop = asyncio.get_event_loop()
-            # Ahora audio_data es el Base64 del audio
-            audio_data = await loop.run_in_executor(
-                None, 
-                lambda: audio_integrador.generar_audio(response_text)
-            )
-            
-            await websocket.send_json({
-                "text": response_text,
-                "audio_base64": audio_data,
-                "transcription": input_text if "bytes" in message else None
-            })
+            # Generar respuesta
+            try:
+                response_text = motor_freestyle.generar_cuarteta(input_text)
+                
+                loop = asyncio.get_event_loop()
+                audio_data = await loop.run_in_executor(
+                    None, 
+                    lambda: audio_integrador.generar_audio(response_text)
+                )
+                
+                if not audio_data:
+                    await websocket.send_json({"error": "Error generando audio. Verifica la conexión con el TTS."})
+                    continue
+
+                await websocket.send_json({
+                    "text": response_text,
+                    "audio_base64": audio_data,
+                    "transcription": input_text if "bytes" in message else None
+                })
+            except Exception as e:
+                print(f"Error generando respuesta: {e}")
+                await websocket.send_json({"error": f"Error interno al generar la barra: {str(e)}"})
             
     except WebSocketDisconnect:
         print("Cliente desconectado")
     except Exception as e:
-        print(f"Error en WebSocket: {e}")
+        print(f"Error crítico en WebSocket: {e}")
+        try:
+            await websocket.send_json({"error": f"Error crítico: {str(e)}"})
+        except:
+            pass
 
 if __name__ == "__main__":
     import uvicorn
