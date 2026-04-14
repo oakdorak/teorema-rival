@@ -2,56 +2,55 @@ import random
 import re
 
 class GeneradorFreestyle:
-    def __init__(self, agresividad=0.8):
+    def __init__(self, agresividad=0.9):
         self.agresividad = agresividad
         
-        # Diccionario expandido estilo "Teorema" (Battler Profesional)
-        self.lexico = {
-            "conceptos": ["flow", "metrica", "estilo", "punchline", "escena", "trono", "leyenda", "maestria"],
-            "ataque": ["quemado", "obsoleto", "copia", "fantasma", "novato", "silencio", "suelo", "cenizas"],
-            "poder": ["motor", "rayo", "fuego", "trueno", "imperio", "corona", "dictador", "cima"],
-            "conectores": ["pero", "aunque", "entonces", "mientras", "porque"]
+        # Lexico avanzado basado en la esencia de Teorema (Técnica, Agresividad, Métrica)
+        self.vocab = {
+            "sujetos": ["novato", "fantasma", "copia", "estatua", "eco", "sombra", "figurante"],
+            "conceptos": ["flow", "metrica", "estilo", "punchline", "escena", "trono", "leyenda", "maestria", "patron", "codigo"],
+            "ataques": ["quemado", "obsoleto", "vacío", "genérico", "frágil", "silenciado", "enterrado", "borrado"],
+            "poder": ["motor", "rayo", "fuego", "trueno", "imperio", "corona", "dictador", "cima", "volcan", "tsunami"],
+            "verbos_ataque": ["rompo", "quemo", "borro", "aplasto", "estrujo", "aniquilo", "humillo", "desmonto"],
+            "conectores": ["mientras", "porque", "entonces", "aunque", "y ahora"]
         }
         
-        # Plantillas de estructura de punchline (simulando la descomposición de Teorema)
-        self.estructuras = [
-            "Dices que tienes {conceptos}, pero en realidad eres {ataque}.",
-            "Tu rap es {ataque}, el mío es el {poder} que te deja en el {ataque}.",
+        # Plantillas de estructura de batalla (Métrica de Teorema: Construcción -> Punchline)
+        self.plantillas = [
+            # Tipo 1: Comparación destructiva
+            "Dices que tienes {conceptos}, pero en realidad eres un {sujetos} {ataques}.",
+            "Tú hablas de {poder}, pero yo soy el {poder} que te deja {ataque}.",
+            "Intentas imitar mi {conceptos}, pero tu {conceptos} es solo {ataques}.",
+            "Tu rap es {ataques}, el mío es {poder} puro, ¡estás {ataques}!",
+            # Tipo 2: Ataque técnico (estilo Teorema)
+            "No aguantas mi {metrica}, porque mi {poder} es tu {ataque} final.",
+            "Analizo tu {conceptos}, veo que es {ataques}, y yo {verbos_ataque} tu {poder}.",
             "Vienes con {conceptos} falso, yo traigo el {poder} y el {lexico['conceptos'][0]} real.",
-            "Hablas de {poder}, pero tu {conceptos} es solo un {ataque} en la pista.",
-            "No intentes seguir mi {metrica}, porque mi {poder} es tu {ataque}."
+            "Tú eres un {sujetos} en la pista, yo soy el {poder} que te deja en el {ataque}."
         ]
 
-    def _obtener_palabra(self, categoria):
-        return random.choice(self.lexico.get(categoria, ["flow"]))
+    def _get(self, cat):
+        return random.choice(self.vocab.get(cat, ["flow"]))
 
     def generar_cuarteta(self, input_usuario):
-        # Simulación de análisis de input
+        # Análisis simple del input para personalizar la respuesta
         tema = input_usuario.split()[-1] if input_usuario else "estilo"
         
-        # Generar 4 versos con rima simulada (AABB o ABAB)
-        # Para Teorema, usamos rimas fuertes y directas
+        # Construcción de la cuarteta (Métrica AABB simulada)
+        # Verso 1: Establece la premisa
+        v1 = f"Dices que sabes de {tema}, pero tu {self._get('conceptos')} es {self._get('ataques')}."
         
-        # Verso 1: Ataque directo al input
-        v1 = f"Dices que sabes de {tema}, pero tu {self._obtener_palabra('conceptos')} es {self._obtener_palabra('ataque')}."
+        # Verso 2: Refuerza la rima A con ataque
+        v2 = f"Yo {self._get('verbos_ataque')} tu {self._get('conceptos')}, dejándote {self._get('ataques')} en el suelo."
         
-        # Verso 2: Rima con V1 (A)
-        rima_a = v1.split()[-1].lower()
-        v2 = f"Yo llego con la {self._obtener_palabra('poder')}, rompiendo tu {rima_a} con mi propia {self._obtener_palabra('maestria') if 'maestria' in self.lexico['conceptos'] else 'maestria'}."
-        # (Simplificación: forzamos la rima conceptualmente)
-        v2 = f"Llego con el {self._obtener_palabra('poder')}, y dejo tu {self._obtener_palabra('ataque')} en el suelo, ¡está hecho!"
+        # Verso 3: Sube la tensión (B)
+        v3 = f"En esta batalla, tú eres solo un {self._get('sujetos')} que no aguanta el {self._get('poder')}."
         
-        # Verso 3: Construcción de tensión (B)
-        v3 = f"En esta batalla, tú eres solo un {self._obtener_palabra('ataque')} que no aguanta el {self._obtener_palabra('poder')}."
+        # Verso 4: EL PUNCHLINE FINAL (B) - El golpe de gracia
+        v4 = f"¡Soy el Teorema, la ley del rap, y tú el {self._get('sujetos')} que no puede crecer!"
         
-        # Verso 4: PUNCHLINE FINAL (B)
-        v4 = f"¡Soy el Teorema, la ley del rap, y tú solo el {self._obtener_palabra('ataque')} que no puede crecer!"
-        
-        # Ajuste de estilo basado en agresividad
-        if self.agresividad > 0.7:
-            v4 = f"¡Cierra la boca, novato, que el Teorema llegó para dejarte en el {self._obtener_palabra('ataque')}!"
+        # Ajuste de agresividad final
+        if self.agresividad > 0.8:
+            v4 = f"¡Cierra la boca, {self._get('sujetos')}, que el Teorema llegó para {self._get('verbos_ataque')} tu {self._get('poder')}!"
 
-        return f"🎤 [TIPO: PUNCHLINE]\n\n{v1}\n{v2}\n{v3}\n{v4}"
-
-    def _obtener_palabra_segura(self, cat):
-        return random.choice(self.lexico.get(cat, ["flow"]))
+        return f"🎤 [ESTILO: TEOREMA-PUNCHLINE]\n\n{v1}\n{v2}\n{v3}\n{v4}"
