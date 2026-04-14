@@ -39,14 +39,21 @@ class GeneradorFreestyle:
     def generar_cuarteta(self, input_usuario, mode="teorema"):
         system_prompt = self.prompts.get(mode, self.prompts["teorema"])
         
+        # Mejoramos el prompt de usuario para forzar el comportamiento de "Rival de Freestyle"
+        user_content = (
+            f"Tu oponente acaba de lanzarte esta barra: '{input_usuario}'. "
+            f"Analiza los conceptos que usó, desmóntalos con ingenio y responde con una cuarteta de freestyle que lo deje humillado. "
+            f"No solo rimes, ¡BATALLA! Usa sus propias palabras en su contra y cierra con un punchline devastador que demuestre tu superioridad."
+        )
+        
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Responde a esto con una cuarteta de freestyle: {input_usuario}"}
+                    {"role": "user", "content": user_content}
                 ],
-                temperature=0.8,
+                temperature=0.9, # Aumentamos un poco la creatividad para el battle
                 max_tokens=150
             )
             
