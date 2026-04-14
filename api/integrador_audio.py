@@ -1,5 +1,7 @@
 import os
+import time
 import requests
+import json
 import base64
 from datetime import datetime
 from gradio_client import Client
@@ -13,8 +15,8 @@ class IntegradorAudio:
         self.base_path = os.path.dirname(__file__)
         self.path_t = os.path.join(self.base_path, "assets/refs/teorema.mp3")
         self.path_g = os.path.join(self.base_path, "assets/refs/goku.mp3")
-        self.txt_t = os.getenv("REF_TEXT_TEOREMA", "Flow ley pista")
-        self.txt_g = os.getenv("REF_TEXT_GOKU", "Hola soy Goku")
+        self.txt_t = os.getenv("REF_TEXT_TEOREMA", "Siento que mi flow es la ley en la pista, nadie puede contra mi metrica.")
+        self.txt_g = os.getenv("REF_TEXT_GOKU", "¡Hola, soy Goku! ¡Siento un ki impresionante en este lugar!")
 
     def generar_audio(self, texto, voice="alloy", filename_prefix="batalla"):
         if voice == "alloy":
