@@ -5,53 +5,110 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teorema Freestyle Bot</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #121212; color: white; }
-        #response { margin-top: 20px; padding: 15px; border: 1px solid #333; border-radius: 8px; background: #1e1e1e; max-width: 80%; text-align: center; white-space: pre-wrap; }
-        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
-        button { padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; font-weight: bold; }
-        #btn-record { background: #ff4b2b; color: white; }
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #121212; color: white; margin: 0; padding: 20px; box-sizing: border-box; }
+        h1 { font-size: 1.5rem; text-align: center; margin-bottom: 20px; }
+        #response { margin-top: 20px; padding: 15px; border: 1px solid #333; border-radius: 8px; background: #1e1e1e; width: 100%; max-width: 400px; text-align: center; white-space: pre-wrap; min-height: 50px; }
+        .controls { display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 400px; align-items: center; }
+        .text-controls { display: flex; gap: 10px; width: 100%; }
+        button { padding: 12px 20px; cursor: pointer; border-radius: 5px; border: none; font-weight: bold; transition: 0.3s; }
+        #btn-record { background: #ff4b2b; color: white; width: 100%; font-size: 1.1rem; }
         #btn-send { background: #00c6ff; color: white; }
-        textarea { padding: 10px; width: 300px; height: 60px; border-radius: 5px; border: 1px solid #333; background: #222; color: white; }
+        textarea { padding: 10px; flex-grow: 1; height: 60px; border-radius: 5px; border: 1px solid #333; background: #222; color: white; resize: none; }
+        #status { font-size: 0.8rem; color: #888; margin-top: 10px; }
     </style>
 </head>
 <body>
     <h1>🎤 Teorema Freestyle Bot</h1>
     
     <div class="controls">
-        <textarea id="input" placeholder="Escribe tu barra..."></textarea>
-        <button id="btn-send" onclick="sendText()">Lanzar Texto</button>
-    </div>
-    
-    <div class="controls">
+        <div class="text-controls">
+            <textarea id="input" placeholder="Escribe tu barra..."></textarea>
+            <button id="btn-send" onclick="sendText()">Lanzar</button>
+        </div>
         <button id="btn-record" onclick="toggleRecording()">🔴 Grabar Audio</button>
     </div>
 
     <div id="response">Esperando tu barra...</div>
-    <div id="audio-player-container"></div>
+    <div id="status">Estado: Desconectado</div>
+    <div id="audio-player-container" style="margin-top: 20px;"></div>
 
     <script>
         const wsUrl = window.location.protocol === 'https:' 
             ? `wss://${window.location.host}/ws` 
             : `ws://localhost:8000/ws`;
         
-        const ws = new WebSocket(wsUrl);
+        let ws;
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
+        let responseTimeout;
+
+        function connect() {
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                document.getElementById('status').innerText = "Estado: Conectado ✅";
+            };
+
+            ws.onclose = () => {
+                document.getElementById('status').innerText = "Estado: Desconectado ❌";
+                setTimeout(connect, 3000); // Auto-reconnect
+            };
+
+            ws.onerror = (err) => {
+                console.error("WebSocket Error:", err);
+                document.getElementById('status').innerText = "Estado: Error de conexión";
+            };
+
+            ws.onmessage = (e) => {
+                clearTimeout(responseTimeout);
+                const data = JSON.parse(e.data);
+                
+                if (data.error) {
+                    document.getElementById('response').innerText = "⚠️ " + data.error;
+                    return;
+                }
+
+                document.getElementById('response').innerText = data.text;
+                
+                if (data.audio_base64) {
+                    const container = document.getElementById('audio-player-container');
+                    const audio = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
+                    audio.controls = true;
+                    audio.autoplay = true;
+                    container.innerHTML = '';
+                    container.appendChild(audio);
+                }
+            };
+        }
+
+        function setStatus(msg) {
+            document.getElementById('response').innerText = msg;
+            // Iniciamos el timeout de 15 segundos
+            clearTimeout(responseTimeout);
+            responseTimeout = setTimeout(() => {
+                document.getElementById('response').innerText = "⌛ Tiempo de espera agotado. Intenta de nuevo.";
+            }, 15000);
+        }
 
         async function toggleRecording() {
             const btn = document.getElementById('btn-record');
             if (!isRecording) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
+                    
+                    // Detectamos el tipo de MIME soportado por el navegador móvil
+                    const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 
+                                    MediaRecorder.isTypeSupported('audio/ogg') ? 'audio/ogg' : 'audio/mp4';
+                    
+                    mediaRecorder = new MediaRecorder(stream, { mimeType });
                     audioChunks = [];
 
                     mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
                     mediaRecorder.onstop = async () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        setStatus("📤 Enviando audio y transcribiendo...");
+                        const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
                         ws.send(audioBlob);
-                        document.getElementById('response').innerText = "Transcribiendo y generando respuesta...";
                     };
 
                     mediaRecorder.start();
@@ -59,8 +116,7 @@
                     btn.innerText = "⏹️ Detener y Enviar";
                     btn.style.background = "#555";
                 } catch (err) {
-                    alert("No se pudo acceder al micrófono. Por favor, verifica los permisos.");
-                    console.error(err);
+                    alert("Error de micrófono: " + err.message);
                 }
             } else {
                 mediaRecorder.stop();
@@ -73,34 +129,12 @@
         function sendText() {
             const text = document.getElementById('input').value;
             if (text) {
+                setStatus("⚙️ Generando respuesta...");
                 ws.send(text);
-                document.getElementById('response').innerText = "Generando respuesta...";
             }
         }
 
-        ws.onmessage = (e) => {
-            const data = JSON.parse(e.data);
-            
-            if (data.error) {
-                document.getElementById('response').innerText = "Error: " + data.error;
-                return;
-            }
-
-            document.getElementById('response').innerText = data.text;
-            
-            if (data.audio_base64) {
-                const container = document.getElementById('audio-player-container');
-                // Creamos un elemento de audio con el src en formato Base64
-                const audio = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
-                audio.controls = true;
-                audio.autoplay = true;
-                
-                container.innerHTML = '';
-                container.appendChild(audio);
-            }
-        };
-
-        ws.onerror = (err) => console.error("WebSocket Error:", err);
+        connect();
     </script>
 </body>
 </html>
