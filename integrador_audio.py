@@ -2,24 +2,23 @@ import os
 import time
 import requests
 import json
+import base64
 from datetime import datetime
 
-# Configuración: Usamos /tmp para compatibilidad con Vercel
+# Configuración
 OUTPUT_DIR = os.getenv("AUDIO_OUTPUT_DIR", "/tmp/audio")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 class IntegradorAudio:
     def __init__(self, tts_api_url=None):
-        # Prioridad: Argumento > Variable de Entorno > Default OpenAI
         self.tts_api_url = tts_api_url or os.getenv("TTS_API_URL", "https://api.openai.com/v1/audio/speech")
         self.api_key = os.getenv("OPENAI_API_KEY", "")
 
     def generar_audio(self, texto, filename_prefix="batalla"):
         """
-        Envía texto a la API de OpenAI TTS y guarda el archivo .mp3 resultante.
+        Envía texto a la API de OpenAI TTS y devuelve el audio en formato Base64.
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # OpenAI devuelve mp3 por defecto
         output_path = os.path.join(OUTPUT_DIR, f"{filename_prefix}_{timestamp}.mp3")
         
         start_time = time.time()
@@ -30,11 +29,10 @@ class IntegradorAudio:
                 "Content-Type": "application/json"
             }
             
-            # Payload específico para OpenAI TTS
             payload = {
                 "model": "tts-1",
                 "input": texto,
-                "voice": "alloy" # Puedes cambiar la voz: alloy, echo, fable, onyx, nova, shimmer
+                "voice": "alloy"
             }
             
             response = requests.post(
@@ -45,12 +43,16 @@ class IntegradorAudio:
             )
             
             if response.status_code == 200:
+                # Guardamos el archivo localmente para logs
                 with open(output_path, "wb") as f:
                     f.write(response.content)
                 
+                # Convertimos el contenido binario a Base64 para enviarlo al frontend
+                audio_base64 = base64.b64encode(response.content).decode('utf-8')
+                
                 latencia = time.time() - start_time
                 self._log_interaccion(texto, output_path, latencia)
-                return output_path
+                return audio_base64
             else:
                 print(f"Error en API OpenAI TTS: {response.status_code} - {response.text}")
                 return None
@@ -66,7 +68,6 @@ class IntegradorAudio:
             "archivo_audio": path,
             "latencia_segundos": round(latencia, 3)
         }
-        
         try:
             log_file = os.path.join(OUTPUT_DIR, "interacciones.jsonl")
             with open(log_file, "a", encoding="utf-8") as f:

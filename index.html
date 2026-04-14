@@ -30,7 +30,6 @@
     <div id="audio-player-container"></div>
 
     <script>
-        // Cambiar localhost por la URL de Vercel en producción
         const wsUrl = window.location.protocol === 'https:' 
             ? `wss://${window.location.host}/ws` 
             : `ws://localhost:8000/ws`;
@@ -43,21 +42,26 @@
         async function toggleRecording() {
             const btn = document.getElementById('btn-record');
             if (!isRecording) {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
 
-                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-                mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    ws.send(audioBlob);
-                    document.getElementById('response').innerText = "Transcribiendo y generando respuesta...";
-                };
+                    mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        ws.send(audioBlob);
+                        document.getElementById('response').innerText = "Transcribiendo y generando respuesta...";
+                    };
 
-                mediaRecorder.start();
-                isRecording = true;
-                btn.innerText = "⏹️ Detener y Enviar";
-                btn.style.background = "#555";
+                    mediaRecorder.start();
+                    isRecording = true;
+                    btn.innerText = "⏹️ Detener y Enviar";
+                    btn.style.background = "#555";
+                } catch (err) {
+                    alert("No se pudo acceder al micrófono. Por favor, verifica los permisos.");
+                    console.error(err);
+                }
             } else {
                 mediaRecorder.stop();
                 isRecording = false;
@@ -84,9 +88,15 @@
 
             document.getElementById('response').innerText = data.text;
             
-            if (data.audio_path) {
+            if (data.audio_base64) {
                 const container = document.getElementById('audio-player-container');
-                container.innerHTML = `<audio controls autoplay src="${data.audio_path}"></audio>`;
+                // Creamos un elemento de audio con el src en formato Base64
+                const audio = new Audio(`data:audio/mp3;base64,${data.audio_base64}`);
+                audio.controls = true;
+                audio.autoplay = true;
+                
+                container.innerHTML = '';
+                container.appendChild(audio);
             }
         };
 

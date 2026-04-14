@@ -25,7 +25,6 @@ async def transcribe_audio(audio_bytes):
     Envía los bytes de audio a la API de OpenAI Whisper y devuelve el texto.
     """
     try:
-        # OpenAI requiere el parámetro 'model' y el archivo en multipart/form-data
         files = {
             "file": ("audio.wav", audio_bytes, "audio/wav"),
             "model": (None, "whisper-1")
@@ -80,14 +79,15 @@ async def websocket_endpoint(websocket: WebSocket):
             response_text = motor_freestyle.generar_cuarteta(input_text)
             
             loop = asyncio.get_event_loop()
-            audio_path = await loop.run_in_executor(
+            # Ahora audio_data es el Base64 del audio
+            audio_data = await loop.run_in_executor(
                 None, 
                 lambda: audio_integrador.generar_audio(response_text)
             )
             
             await websocket.send_json({
                 "text": response_text,
-                "audio_path": audio_path,
+                "audio_base64": audio_data,
                 "transcription": input_text if "bytes" in message else None
             })
             
