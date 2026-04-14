@@ -4,64 +4,63 @@ import requests
 import json
 import base64
 from datetime import datetime
+from gradio_client import Client
 
 # Configuración
 OUTPUT_DIR = os.getenv("AUDIO_OUTPUT_DIR", "/tmp/audio")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 class IntegradorAudio:
-    def __init__(self, tts_api_url=None):
-        self.tts_api_url = tts_api_url or os.getenv("TTS_API_URL", "https://api.openai.com/v1/audio/speech")
-        self.api_key = os.getenv("OPENAI_API_KEY", "")
+    def __init__(self):
+        # Usamos el Space de Qwen3-TTS para clonación Zero-Shot
+        self.qwen_client = Client("Qwen/Qwen3-TTS")
+        
+        # URLs de los audios de referencia (Debe configurarlas el usuario en Vercel)
+        self.ref_teorema = os.getenv("REF_AUDIO_TEOREMA", "")
+        self.ref_goku = os.getenv("REF_AUDIO_GOKU", "")
 
     def generar_audio(self, texto, voice="alloy", filename_prefix="batalla"):
         """
-        Envía texto a la API de OpenAI TTS y devuelve el audio en formato Base64.
+        Utiliza Qwen3-TTS para clonar la voz basándose en el audio de referencia.
         """
-        if not self.api_key:
-            return {"error": "Falta la OPENAI_API_KEY en las variables de entorno."}
-
+        ref_audio = self.ref_teorema if voice == "alloy" else self.ref_goku
+        
+        if not ref_audio:
+            return {"error": f"Falta el audio de referencia para la voz {voice} (REF_AUDIO_...)"}
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_path = os.path.join(OUTPUT_DIR, f"{filename_prefix}_{timestamp}.mp3")
         
         start_time = time.time()
         
         try:
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "model": "tts-1",
-                "input": texto,
-                "voice": voice
-            }
-            
-            response = requests.post(
-                self.tts_api_url,
-                headers=headers,
-                json=payload,
-                timeout=20
+            # Llamada al Space de Qwen3-TTS
+            # El API de Qwen3-TTS espera: texto, audio_referencia
+            result = self.qwen_client.predict(
+                text=texto,
+                ref_audio=ref_audio,
+                api_name="/predict"
             )
             
-            if response.status_code == 200:
+            # El resultado suele ser la ruta al archivo generado en el Space
+            audio_url = result 
+            
+            # Descargamos el audio del Space para convertirlo a Base64
+            audio_response = requests.get(audio_url)
+            if audio_response.status_code == 200:
                 with open(output_path, "wb") as f:
-                    f.write(response.content)
+                    f.write(audio_response.content)
                 
-                audio_base64 = base64.b64encode(response.content).decode('utf-8')
+                audio_base64 = base64.b64encode(audio_response.content).decode('utf-8')
                 latencia = time.time() - start_time
                 self._log_interaccion(texto, output_path, latencia)
                 return audio_base64
             else:
-                try:
-                    err_msg = response.json().get("error", {}).get("message", response.text)
-                except:
-                    err_msg = response.text
-                return {"error": f"OpenAI TTS ({response.status_code}): {err_msg}"}
+                return {"error": f"Error descargando audio de Qwen: {audio_response.status_code}"}
                 
         except Exception as e:
-            return {"error": f"Error de conexión TTS: {str(e)}"}
+            print(f"Error en Qwen3-TTS: {e}")
+            return {"error": f"Error de clonación Qwen3: {str(e)}"}
 
     def _log_interaccion(self, texto, path, latencia):
         log_entry = {
