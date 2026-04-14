@@ -29,47 +29,33 @@
     </div>
 
     <div id="response">Esperando tu barra...</div>
-    <div id="status">Estado: Desconectado</div>
+    <div id="status">Listo para combatir</div>
     <div id="audio-player-container" style="margin-top: 20px;"></div>
 
     <script>
-        const wsUrl = window.location.protocol === 'https:' 
-            ? `wss://${window.location.host}/ws` 
-            : `ws://localhost:8000/ws`;
-        
-        let ws;
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
-        let responseTimeout;
 
-        function connect() {
-            ws = new WebSocket(wsUrl);
+        async function handleResponse(formData) {
+            document.getElementById('response').innerText = "⚙️ Generando respuesta...";
+            document.getElementById('status').innerText = "Estado: Procesando...";
             
-            ws.onopen = () => {
-                document.getElementById('status').innerText = "Estado: Conectado ✅";
-            };
-
-            ws.onclose = () => {
-                document.getElementById('status').innerText = "Estado: Desconectado ❌";
-                setTimeout(connect, 3000); // Auto-reconnect
-            };
-
-            ws.onerror = (err) => {
-                console.error("WebSocket Error:", err);
-                document.getElementById('status').innerText = "Estado: Error de conexión";
-            };
-
-            ws.onmessage = (e) => {
-                clearTimeout(responseTimeout);
-                const data = JSON.parse(e.data);
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    body: formData
+                });
                 
-                if (data.error) {
-                    document.getElementById('response').innerText = "⚠️ " + data.error;
-                    return;
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Error en el servidor');
                 }
-
+                
+                const data = await response.json();
+                
                 document.getElementById('response').innerText = data.text;
+                document.getElementById('status').innerText = "Estado: Respuesta recibida ✅";
                 
                 if (data.audio_base64) {
                     const container = document.getElementById('audio-player-container');
@@ -79,16 +65,10 @@
                     container.innerHTML = '';
                     container.appendChild(audio);
                 }
-            };
-        }
-
-        function setStatus(msg) {
-            document.getElementById('response').innerText = msg;
-            // Iniciamos el timeout de 15 segundos
-            clearTimeout(responseTimeout);
-            responseTimeout = setTimeout(() => {
-                document.getElementById('response').innerText = "⌛ Tiempo de espera agotado. Intenta de nuevo.";
-            }, 15000);
+            } catch (err) {
+                document.getElementById('response').innerText = "⚠️ " + err.message;
+                document.getElementById('status').innerText = "Estado: Error ❌";
+            }
         }
 
         async function toggleRecording() {
@@ -96,8 +76,6 @@
             if (!isRecording) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    
-                    // Detectamos el tipo de MIME soportado por el navegador móvil
                     const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 
                                     MediaRecorder.isTypeSupported('audio/ogg') ? 'audio/ogg' : 'audio/mp4';
                     
@@ -106,9 +84,13 @@
 
                     mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
                     mediaRecorder.onstop = async () => {
-                        setStatus("📤 Enviando audio y transcribiendo...");
+                        document.getElementById('status').innerText = "Estado: Enviando audio...";
                         const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-                        ws.send(audioBlob);
+                        
+                        const formData = new FormData();
+                        formData.append('file', audioBlob, 'audio.wav');
+                        
+                        await handleResponse(formData);
                     };
 
                     mediaRecorder.start();
@@ -129,12 +111,11 @@
         function sendText() {
             const text = document.getElementById('input').value;
             if (text) {
-                setStatus("⚙️ Generando respuesta...");
-                ws.send(text);
+                const formData = new FormData();
+                formData.append('text', text);
+                handleResponse(formData);
             }
         }
-
-        connect();
     </script>
 </body>
 </html>
