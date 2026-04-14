@@ -15,15 +15,26 @@ class IntegradorAudio:
         # Usamos el Space de Qwen3-TTS para clonación Zero-Shot
         self.qwen_client = Client("Qwen/Qwen3-TTS")
         
-        # URLs de los audios de referencia (Debe configurarlas el usuario en Vercel)
+        # URLs de los audios de referencia (Configurar en Vercel)
         self.ref_teorema = os.getenv("REF_AUDIO_TEOREMA", "")
         self.ref_goku = os.getenv("REF_AUDIO_GOKU", "")
+        
+        # Transcripciones de los audios de referencia (Configurar en Vercel)
+        # Qwen3-TTS requiere el texto exacto de lo que se dice en el audio de referencia
+        self.text_teorema = os.getenv("REF_TEXT_TEOREMA", "Texto de referencia de Teorema")
+        self.text_goku = os.getenv("REF_TEXT_GOKU", "Texto de referencia de Goku")
 
     def generar_audio(self, texto, voice="alloy", filename_prefix="batalla"):
         """
         Utiliza Qwen3-TTS para clonar la voz basándose en el audio de referencia.
         """
-        ref_audio = self.ref_teorema if voice == "alloy" else self.ref_goku
+        # Seleccionamos la referencia según el modo
+        if voice == "alloy": # Teorema
+            ref_audio = self.ref_teorema
+            ref_text = self.text_teorema
+        else: # Goku
+            ref_audio = self.ref_goku
+            ref_text = self.text_goku
         
         if not ref_audio:
             return {"error": f"Falta el audio de referencia para la voz {voice} (REF_AUDIO_...)"}
@@ -34,16 +45,20 @@ class IntegradorAudio:
         start_time = time.time()
         
         try:
-            # Llamada al Space de Qwen3-TTS
-            # El API de Qwen3-TTS espera: texto, audio_referencia
+            # Llamada al Space de Qwen3-TTS usando el API name correcto
+            # Parámetros: ref_audio, ref_text, target_text, language, use_xvector_only, model_size
             result = self.qwen_client.predict(
-                text=texto,
                 ref_audio=ref_audio,
-                api_name="/predict"
+                ref_text=ref_text,
+                target_text=texto,
+                language="Spanish",
+                use_xvector_only=False,
+                model_size="1.7B",
+                api_name="/generate_voice_clone"
             )
             
-            # El resultado suele ser la ruta al archivo generado en el Space
-            audio_url = result 
+            # El resultado es una tupla: (generated_audio_path, status)
+            audio_url = result[0]
             
             # Descargamos el audio del Space para convertirlo a Base64
             audio_response = requests.get(audio_url)
@@ -51,7 +66,10 @@ class IntegradorAudio:
                 with open(output_path, "wb") as f:
                     f.write(audio_response.content)
                 
+                audio_base64 = base64.b64encode(audio_//response.content).decode('utf-8')
+                # Corrección de typo: audio_response.content
                 audio_base64 = base64.b64encode(audio_response.content).decode('utf-8')
+                
                 latencia = time.time() - start_time
                 self._log_interaccion(texto, output_path, latencia)
                 return audio_base64
