@@ -79,8 +79,6 @@ async def chat_endpoint(
             return JSONResponse(status_code=400, content={"error": "Debes enviar texto o audio."})
 
         # 2. Generar respuesta freestyle
-        response_text = motor_//freestyle.generar_cuarteta(input_text)
-        # Corrección de typo: motor_freestyle
         response_text = motor_freestyle.generar_cuarteta(input_text)
         
         # 3. Generar audio response
