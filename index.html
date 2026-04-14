@@ -1,18 +1,96 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teorema Freestyle Bot</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #121212; color: white; }
+        #response { margin-top: 20px; padding: 15px; border: 1px solid #333; border-radius: 8px; background: #1e1e1e; max-width: 80%; text-align: center; white-space: pre-wrap; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        button { padding: 10px 20px; cursor: pointer; border-radius: 5px; border: none; font-weight: bold; }
+        #btn-record { background: #ff4b2b; color: white; }
+        #btn-send { background: #00c6ff; color: white; }
+        textarea { padding: 10px; width: 300px; height: 60px; border-radius: 5px; border: 1px solid #333; background: #222; color: white; }
+    </style>
+</head>
 <body>
-    <h1>Teorema Freestyle Bot</h1>
-    <textarea id="input" placeholder="Tu barra..."></textarea>
-    <button onclick="send()">Lanzar</button>
-    <div id="response"></div>
+    <h1>🎤 Teorema Freestyle Bot</h1>
+    
+    <div class="controls">
+        <textarea id="input" placeholder="Escribe tu barra..."></textarea>
+        <button id="btn-send" onclick="sendText()">Lanzar Texto</button>
+    </div>
+    
+    <div class="controls">
+        <button id="btn-record" onclick="toggleRecording()">🔴 Grabar Audio</button>
+    </div>
+
+    <div id="response">Esperando tu barra...</div>
+    <div id="audio-player-container"></div>
+
     <script>
-        const ws = new WebSocket("ws://localhost:8000/ws");
-        function send() {
-            ws.send(document.getElementById("input").value);
+        // Cambiar localhost por la URL de Vercel en producción
+        const wsUrl = window.location.protocol === 'https:' 
+            ? `wss://${window.location.host}/ws` 
+            : `ws://localhost:8000/ws`;
+        
+        const ws = new WebSocket(wsUrl);
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+
+        async function toggleRecording() {
+            const btn = document.getElementById('btn-record');
+            if (!isRecording) {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    ws.send(audioBlob);
+                    document.getElementById('response').innerText = "Transcribiendo y generando respuesta...";
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                btn.innerText = "⏹️ Detener y Enviar";
+                btn.style.background = "#555";
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                btn.innerText = "🔴 Grabar Audio";
+                btn.style.background = "#ff4b2b";
+            }
         }
+
+        function sendText() {
+            const text = document.getElementById('input').value;
+            if (text) {
+                ws.send(text);
+                document.getElementById('response').innerText = "Generando respuesta...";
+            }
+        }
+
         ws.onmessage = (e) => {
-            document.getElementById("response").innerText = e.data;
-        }
+            const data = JSON.parse(e.data);
+            
+            if (data.error) {
+                document.getElementById('response').innerText = "Error: " + data.error;
+                return;
+            }
+
+            document.getElementById('response').innerText = data.text;
+            
+            if (data.audio_path) {
+                const container = document.getElementById('audio-player-container');
+                container.innerHTML = `<audio controls autoplay src="${data.audio_path}"></audio>`;
+            }
+        };
+
+        ws.onerror = (err) => console.error("WebSocket Error:", err);
     </script>
 </body>
 </html>
