@@ -16,8 +16,11 @@ class IntegradorAudio:
 
     def generar_audio(self, texto, filename_prefix="batalla"):
         """
-        Envía texto a la API de OpenAI TTS y devuelve el audio en formato Base64.
+        Envía texto a la API de OpenAI TTS y devuelve el audio en formato Base64 o un mensaje de error.
         """
+        if not self.api_key:
+            return {"error": "Falta la OPENAI_API_KEY en las variables de entorno."}
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_path = os.path.join(OUTPUT_DIR, f"{filename_prefix}_{timestamp}.mp3")
         
@@ -39,27 +42,29 @@ class IntegradorAudio:
                 self.tts_api_url,
                 headers=headers,
                 json=payload,
-                timeout=15
+                timeout=20
             )
             
             if response.status_code == 200:
-                # Guardamos el archivo localmente para logs
                 with open(output_path, "wb") as f:
                     f.write(response.content)
                 
-                # Convertimos el contenido binario a Base64 para enviarlo al frontend
                 audio_base64 = base64.b64encode(response.content).decode('utf-8')
-                
                 latencia = time.time() - start_time
                 self._log_interaccion(texto, output_path, latencia)
-                return audio_base64
+                return {"data": audio_base64}
             else:
-                print(f"Error en API OpenAI TTS: {response.status_code} - {response.text}")
-                return None
+                # Extraemos el mensaje de error detallado de OpenAI
+                try:
+                    err_msg = response.json().get("error", {}).get("message", response.text)
+                except:
+                    err_msg = response.text
+                print(f"Error en API OpenAI TTS: {response.status_code} - {err_msg}")
+                return {"error": f"OpenAI TTS ({response.status_code}): {err_msg}"}
                 
         except Exception as e:
             print(f"Error en comunicación con OpenAI TTS: {e}")
-            return None
+            return {"error": f"Error de conexión TTS: {str(e)}"}
 
     def _log_interaccion(self, texto, path, latencia):
         log_entry = {

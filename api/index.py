@@ -72,7 +72,7 @@ async def chat_endpoint(
             if transcription:
                 input_text = transcription
             else:
-                return JSONResponse(status_code=400, content={"error": "No se pudo transcribir el audio."})
+                return JSONResponse(status_code=400, content={"error": "No se pudo transcribir el audio. Verifica tu API Key de OpenAI."})
         elif text:
             input_text = text
         else:
@@ -83,17 +83,21 @@ async def chat_endpoint(
         
         # 3. Generar audio response
         loop = asyncio.get_event_loop()
-        audio_base64 = await loop.run_in_executor(
+        audio_result = await loop.run_in_executor(
             None, 
             lambda: audio_integrador.generar_audio(response_text)
         )
         
-        if not audio_base64:
-            return JSONResponse(status_code=500, content={"error": "Error generando audio TTS."})
+        # Verificamos si el resultado es un error o el audio base64
+        if isinstance(audio_result, dict) and "error" in audio_result:
+            return JSONResponse(status_code=500, content={"error": audio_result["error"]})
+        
+        if not audio_result:
+            return JSONResponse(status_code=500, content={"error": "Error desconocido generando audio TTS."})
 
         return {
             "text": response_text,
-            "audio_base64": audio_base64,
+            "audio_base64": audio_result,
             "transcription": input_text if file else None
         }
         
